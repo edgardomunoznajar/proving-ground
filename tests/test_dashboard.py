@@ -2,14 +2,18 @@
 
 import json
 
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
+import pytest
 
-from proving_ground.dashboard.app import create_app
-from proving_ground.journal import JournalStore
-from proving_ground.models import DailyJournal, DiagnosisResult, PhaseResult, PhaseStatus
-from proving_ground.storage.sql import SQLStorageBackend
+fastapi = pytest.importorskip("fastapi", reason="fastapi not installed (optional dependency)")
+
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+
+from proving_ground.dashboard.app import create_app  # noqa: E402
+from proving_ground.journal import JournalStore  # noqa: E402
+from proving_ground.models import DailyJournal, DiagnosisResult, PhaseResult, PhaseStatus  # noqa: E402
+from proving_ground.storage.sql import SQLStorageBackend  # noqa: E402
 
 
 def _make_storage() -> SQLStorageBackend:
