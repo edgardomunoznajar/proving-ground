@@ -49,6 +49,22 @@ INDEX_HTML = """\
   .metric { display: inline-block; margin-right: 20px; }
   .metric-value { font-size: 20px; font-weight: 600; }
   .metric-label { font-size: 12px; color: var(--muted); }
+  .live-header { display: flex; gap: 24px; margin-bottom: 16px; flex-wrap: wrap; }
+  .live-header .metric { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; }
+  .event-feed { max-height: 300px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border);
+                border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; }
+  .event-feed .event-line { padding: 2px 0; border-bottom: 1px solid var(--border); }
+  .event-feed .event-line:last-child { border-bottom: none; }
+  .event-time { color: var(--muted); margin-right: 8px; }
+  .event-type { font-weight: 600; margin-right: 8px; }
+  .event-type.fleet { color: var(--accent); }
+  .event-type.wave { color: var(--yellow); }
+  .event-type.agent { color: var(--green); }
+  .event-type.phase { color: var(--muted); }
+  .event-type.failed { color: var(--red); }
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-right: 6px; }
+  .live-dot.connected { background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 </style>
 </head>
 <body>
@@ -66,6 +82,7 @@ INDEX_HTML = """\
   <div class="tab" data-tab="agents" onclick="switchTab('agents')">Agents</div>
   <div class="tab" data-tab="reviews" onclick="switchTab('reviews')">Reviews</div>
   <div class="tab" data-tab="improvements" onclick="switchTab('improvements')">Improvements</div>
+  <div class="tab" data-tab="live" onclick="switchTab('live')">Live</div>
 </div>
 
 <div id="tab-runs">
@@ -84,6 +101,27 @@ INDEX_HTML = """\
   <div id="improvements-table"></div>
 </div>
 
+<div id="tab-live" class="hidden">
+  <div style="margin-bottom:12px">
+    <span class="live-dot" id="live-dot"></span>
+    <span id="live-status" style="font-size:13px;color:var(--muted)">Disconnected</span>
+  </div>
+  <div class="live-header" id="live-header">
+    <div class="metric"><span class="metric-value" id="lm-agents">0</span><br><span class="metric-label">Active Agents</span></div>
+    <div class="metric"><span class="metric-value" id="lm-waves">0</span><br><span class="metric-label">Current Wave</span></div>
+    <div class="metric"><span class="metric-value" id="lm-completed">0</span><br><span class="metric-label">Completed</span></div>
+    <div class="metric"><span class="metric-value" id="lm-failed">0</span><br><span class="metric-label">Failed</span></div>
+  </div>
+  <h2>Agent Progress</h2>
+  <table id="live-agents-table">
+    <thead><tr><th>Agent</th><th>Phase</th><th>Status</th></tr></thead>
+    <tbody id="live-agents-body"></tbody>
+  </table>
+  <div class="empty" id="live-agents-empty">No agents running.</div>
+  <h2>Event Feed</h2>
+  <div class="event-feed" id="event-feed"></div>
+</div>
+
 <div id="detail-panel" class="hidden">
   <h2 id="detail-title"></h2>
   <div id="detail-content" class="panel"><pre></pre></div>
@@ -95,7 +133,7 @@ const API = '/api';
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  ['runs','agents','reviews','improvements'].forEach(id => {
+  ['runs','agents','reviews','improvements','live'].forEach(id => {
     document.getElementById('tab-' + id).classList.toggle('hidden', id !== name);
   });
   hideDetail();
@@ -103,6 +141,7 @@ function switchTab(name) {
   if (name === 'agents') loadAgents();
   if (name === 'reviews') loadReviews();
   if (name === 'improvements') loadImprovements();
+  if (name === 'live') startSSE();
 }
 
 async function api(path) {
@@ -245,11 +284,84 @@ async function startRun() {
 // --- Detail panel ---
 function showDetail() {
   document.getElementById('detail-panel').classList.remove('hidden');
-  ['runs','agents','reviews','improvements'].forEach(id => document.getElementById('tab-' + id).classList.add('hidden'));
+  ['runs','agents','reviews','improvements','live'].forEach(id => document.getElementById('tab-' + id).classList.add('hidden'));
 }
 function hideDetail() {
   document.getElementById('detail-panel').classList.add('hidden');
   document.querySelector('.tab.active').click();
+}
+
+// --- Live SSE ---
+let evtSource = null;
+const liveAgents = {};  // agent_id -> {phase, status}
+let liveStats = {wave: 0, completed: 0, failed: 0};
+
+function startSSE() {
+  if (evtSource) return;  // already connected
+  evtSource = new EventSource(API + '/events');
+  const dot = document.getElementById('live-dot');
+  const statusEl = document.getElementById('live-status');
+
+  evtSource.onopen = () => { dot.classList.add('connected'); statusEl.textContent = 'Connected'; };
+  evtSource.onerror = () => { dot.classList.remove('connected'); statusEl.textContent = 'Reconnecting...'; };
+
+  evtSource.onmessage = (msg) => {
+    try {
+      const e = JSON.parse(msg.data);
+      handleLiveEvent(e);
+    } catch(_) {}
+  };
+}
+
+function handleLiveEvent(e) {
+  // Update stats
+  if (e.event_type === 'fleet_start') {
+    Object.keys(liveAgents).forEach(k => delete liveAgents[k]);
+    liveStats = {wave: 0, completed: 0, failed: 0};
+  }
+  if (e.event_type === 'wave_start') liveStats.wave = e.wave;
+  if (e.event_type === 'agent_start') liveAgents[e.agent_id] = {phase: '-', status: 'running'};
+  if (e.event_type === 'phase_start') { if (liveAgents[e.agent_id]) liveAgents[e.agent_id].phase = e.phase; }
+  if (e.event_type === 'phase_done') { if (liveAgents[e.agent_id]) liveAgents[e.agent_id].phase = e.phase + ' (' + e.status + ')'; }
+  if (e.event_type === 'agent_done') { liveStats.completed++; if (liveAgents[e.agent_id]) liveAgents[e.agent_id].status = 'done'; }
+  if (e.event_type === 'agent_failed') { liveStats.failed++; if (liveAgents[e.agent_id]) liveAgents[e.agent_id].status = 'failed'; }
+
+  // Update header metrics
+  const activeCount = Object.values(liveAgents).filter(a => a.status === 'running').length;
+  document.getElementById('lm-agents').textContent = activeCount;
+  document.getElementById('lm-waves').textContent = liveStats.wave;
+  document.getElementById('lm-completed').textContent = liveStats.completed;
+  document.getElementById('lm-failed').textContent = liveStats.failed;
+
+  // Update agent table
+  const tbody = document.getElementById('live-agents-body');
+  const emptyEl = document.getElementById('live-agents-empty');
+  const ids = Object.keys(liveAgents);
+  if (ids.length) {
+    emptyEl.classList.add('hidden');
+    tbody.innerHTML = ids.map(id => {
+      const a = liveAgents[id];
+      const badge = a.status === 'done' ? 'badge-green' : a.status === 'failed' ? 'badge-red' : 'badge-yellow';
+      return `<tr><td>${id}</td><td>${a.phase}</td><td><span class="badge ${badge}">${a.status}</span></td></tr>`;
+    }).join('');
+  } else {
+    emptyEl.classList.remove('hidden');
+    tbody.innerHTML = '';
+  }
+
+  // Append to event feed
+  const feed = document.getElementById('event-feed');
+  const typeClass = e.event_type.startsWith('fleet') ? 'fleet' : e.event_type.startsWith('wave') ? 'wave'
+    : e.event_type.includes('failed') ? 'failed' : e.event_type.startsWith('agent') ? 'agent' : 'phase';
+  const time = e.timestamp ? e.timestamp.split('T')[1]?.substring(0,8) || '' : '';
+  const line = document.createElement('div');
+  line.className = 'event-line';
+  line.innerHTML = `<span class="event-time">${time}</span><span class="event-type ${typeClass}">${e.event_type}</span>${e.message || ''}`;
+  feed.appendChild(line);
+  feed.scrollTop = feed.scrollHeight;
+
+  // Cap feed at 200 entries
+  while (feed.children.length > 200) feed.removeChild(feed.firstChild);
 }
 
 // Init

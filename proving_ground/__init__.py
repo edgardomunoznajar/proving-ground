@@ -1,6 +1,7 @@
 """proving-ground: Multi-agent orchestration framework with self-improvement."""
 
 from proving_ground.agent import Agent
+from proving_ground.events import Event, EventBus, EventType
 from proving_ground.fleet import FleetOrchestrator
 from proving_ground.journal import JournalStore
 from proving_ground.models import (
@@ -20,6 +21,9 @@ from proving_ground.types import ContextProvider, StorageBackend, ToolClient
 __all__ = [
     # Core
     "Agent",
+    "Event",
+    "EventBus",
+    "EventType",
     "FleetOrchestrator",
     "JournalStore",
     "CycleReviewer",

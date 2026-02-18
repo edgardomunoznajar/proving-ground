@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
 from proving_ground.agent import Agent
+from proving_ground.events import Event, EventBus, EventType
 from proving_ground.models import DailyJournal
 
 logger = logging.getLogger("proving_ground")
@@ -41,10 +42,23 @@ class FleetOrchestrator:
         waves: list[list[Agent]],
         context_builder: ContextBuilder | None = None,
         max_workers: int = 4,
+        event_bus: EventBus | None = None,
     ):
         self.waves = waves
         self.context_builder = context_builder or _default_context_builder
         self.max_workers = max_workers
+        self.event_bus = event_bus
+
+        # Propagate event_bus to all agents
+        if event_bus is not None:
+            for wave in self.waves:
+                for agent in wave:
+                    agent.event_bus = event_bus
+
+    def _emit(self, event_type: EventType, **kwargs: Any) -> None:
+        """Emit an event if an event bus is configured."""
+        if self.event_bus is not None:
+            self.event_bus.emit(Event(event_type=event_type, **kwargs))
 
     def run(
         self,
@@ -60,6 +74,8 @@ class FleetOrchestrator:
 
         date = date or datetime.utcnow().strftime("%Y-%m-%d")
         t0 = time.monotonic()
+        total_agents = sum(len(w) for w in self.waves)
+        self._emit(EventType.FLEET_START, message=f"Fleet starting: {total_agents} agents in {len(self.waves)} waves", data={"date": date, "total_agents": total_agents, "wave_count": len(self.waves)})
 
         all_results: dict[str, dict[str, Any]] = {}
         all_failed: list[str] = []
@@ -68,6 +84,7 @@ class FleetOrchestrator:
         for wave_idx, wave_agents in enumerate(self.waves):
             wave_label = f"Wave {wave_idx + 1}"
             logger.info("Fleet: %s — %d agents", wave_label, len(wave_agents))
+            self._emit(EventType.WAVE_START, wave=wave_idx + 1, message=f"{wave_label}: {len(wave_agents)} agents", data={"agent_count": len(wave_agents)})
 
             wave_journals: dict[str, DailyJournal] = {}
             wave_results, wave_failed, wave_journals = self._run_wave(
@@ -78,6 +95,7 @@ class FleetOrchestrator:
             )
             all_results.update(wave_results)
             all_failed.extend(wave_failed)
+            self._emit(EventType.WAVE_DONE, wave=wave_idx + 1, message=f"{wave_label} complete: {len(wave_failed)} failed", data={"completed": len(wave_agents) - len(wave_failed), "failed": len(wave_failed)})
 
             # Build context for next wave
             if wave_journals and wave_idx < len(self.waves) - 1:
@@ -104,6 +122,7 @@ class FleetOrchestrator:
             total_tokens,
             duration,
         )
+        self._emit(EventType.FLEET_DONE, status="completed", message=f"Fleet complete: {aggregate['agents_completed']}/{aggregate['total_agents']} succeeded", data=aggregate)
 
         return {
             "status": "completed",

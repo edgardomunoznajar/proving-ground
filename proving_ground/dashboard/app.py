@@ -9,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from proving_ground.dashboard.routes import build_router
+from proving_ground.dashboard.sse import router as sse_router, wire_event_bus
 from proving_ground.dashboard.ui import INDEX_HTML
+from proving_ground.events import EventBus
 from proving_ground.journal import JournalStore
 from proving_ground.reviewer import _REVIEWS_TABLE_DDL
 from proving_ground.types import StorageBackend
@@ -21,6 +23,7 @@ FleetRunner = Callable[[str], dict[str, Any]]
 def create_app(
     storage: StorageBackend,
     fleet_runner: FleetRunner | None = None,
+    event_bus: EventBus | None = None,
     title: str = "Proving Ground",
     cors_origins: list[str] | None = None,
     **kwargs: Any,
@@ -32,6 +35,8 @@ def create_app(
         fleet_runner: Optional callback to trigger a fleet run. Takes a date
             string, returns the fleet result dict. If None, the POST /api/runs
             endpoint returns 501.
+        event_bus: Optional EventBus for real-time SSE streaming. When provided,
+            the /api/events SSE endpoint is enabled.
         title: App title shown in OpenAPI docs.
         cors_origins: Allowed CORS origins. Defaults to ["*"] for local dev.
         **kwargs: Passed through to FastAPI().
@@ -55,6 +60,10 @@ def create_app(
 
     router = build_router(storage, journal_store, fleet_runner=fleet_runner)
     app.include_router(router, prefix="/api")
+
+    if event_bus is not None:
+        wire_event_bus(event_bus)
+        app.include_router(sse_router, prefix="/api")
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:

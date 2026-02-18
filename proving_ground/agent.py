@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
+from proving_ground.events import Event, EventBus, EventType
 from proving_ground.journal import JournalStore
 from proving_ground.models import AgentPersona, DailyJournal, DiagnosisResult, PhaseResult, PhaseStatus
 from proving_ground.phases.base import Phase
@@ -24,10 +25,17 @@ class Agent:
         persona: AgentPersona,
         phases: list[Phase],
         journal_store: JournalStore,
+        event_bus: EventBus | None = None,
     ):
         self.persona = persona
         self.phases = phases
         self.journal_store = journal_store
+        self.event_bus = event_bus
+
+    def _emit(self, event_type: EventType, **kwargs: Any) -> None:
+        """Emit an event if an event bus is configured."""
+        if self.event_bus is not None:
+            self.event_bus.emit(Event(event_type=event_type, agent_id=self.agent_id, **kwargs))
 
     @property
     def agent_id(self) -> str:
@@ -49,12 +57,14 @@ class Agent:
         ctx.setdefault("persona", self.persona)
 
         logger.info("%s: starting cycle for %s (%d phases)", self.agent_id, date, len(self.phases))
+        self._emit(EventType.AGENT_START, message=f"Starting cycle for {date}", data={"date": date, "phase_count": len(self.phases)})
 
         journal = DailyJournal(agent_id=self.agent_id, date=date)
         prior_results: list[PhaseResult] = []
 
         for phase in self.phases:
             logger.info("%s: === %s ===", self.agent_id, phase.name)
+            self._emit(EventType.PHASE_START, phase=phase.name, message=f"Starting phase {phase.name}")
             try:
                 result = phase.execute(ctx, prior_results)
             except Exception as e:
@@ -67,6 +77,12 @@ class Agent:
                     duration_seconds=0.0,
                     error=str(e),
                 )
+            self._emit(
+                EventType.PHASE_DONE,
+                phase=phase.name,
+                status=result.status.value,
+                message=f"Phase {phase.name}: {result.status.value}",
+            )
             journal.phases.append(result)
             prior_results.append(result)
 
@@ -84,6 +100,11 @@ class Agent:
 
         journal.metrics = self._compute_metrics(journal)
         self.journal_store.save(journal)
+        failed = journal.metrics.get("phases_failed", 0)
+        if failed:
+            self._emit(EventType.AGENT_FAILED, status="failed", message=f"Cycle complete with {failed} failed phases", data=journal.metrics)
+        else:
+            self._emit(EventType.AGENT_DONE, status="completed", message=f"Cycle complete. Journal {journal.journal_id}", data=journal.metrics)
         logger.info("%s: cycle complete. Journal %s", self.agent_id, journal.journal_id)
         return journal
 
