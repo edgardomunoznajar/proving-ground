@@ -12,7 +12,7 @@ from proving_ground.models import DailyJournal, DiagnosisResult, PhaseResult, Ph
 from proving_ground.storage.sql import SQLStorageBackend
 
 
-def _make_client() -> tuple[TestClient, SQLStorageBackend, JournalStore]:
+def _make_storage() -> SQLStorageBackend:
     # StaticPool + check_same_thread=False: ensures the same in-memory DB
     # is shared across the main thread and FastAPI's worker threads.
     engine = create_engine(
@@ -20,8 +20,12 @@ def _make_client() -> tuple[TestClient, SQLStorageBackend, JournalStore]:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    storage = SQLStorageBackend(engine)
-    app = create_app(storage)
+    return SQLStorageBackend(engine)
+
+
+def _make_client(fleet_runner=None) -> tuple[TestClient, SQLStorageBackend, JournalStore]:
+    storage = _make_storage()
+    app = create_app(storage, fleet_runner=fleet_runner)
     journal_store = JournalStore(storage)
     journal_store.ensure_table()
     return TestClient(app), storage, journal_store
@@ -236,3 +240,77 @@ def test_list_improvements():
     assert data["count"] > 0
     categories = {item["category"] for item in data["items"]}
     assert "bug" in categories or "suggestion" in categories
+
+
+# ------------------------------------------------------------------
+# Fleet run trigger
+# ------------------------------------------------------------------
+
+
+def test_start_run_no_runner():
+    """POST /api/runs returns 501 when no fleet_runner is configured."""
+    client, _, _ = _make_client()
+    resp = client.post("/api/runs")
+    assert resp.status_code == 501
+
+
+def test_start_run_success():
+    """POST /api/runs triggers the fleet_runner callback and returns results."""
+    def fake_runner(date: str) -> dict:
+        return {"status": "completed", "total_agents": 2, "agents_completed": 2}
+
+    client, _, _ = _make_client(fleet_runner=fake_runner)
+    resp = client.post("/api/runs")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "completed"
+    assert data["result"]["total_agents"] == 2
+
+
+def test_start_run_with_date():
+    """POST /api/runs respects the date query parameter."""
+    captured = {}
+
+    def fake_runner(date: str) -> dict:
+        captured["date"] = date
+        return {"status": "completed"}
+
+    client, _, _ = _make_client(fleet_runner=fake_runner)
+    resp = client.post("/api/runs?date=2025-03-01")
+    assert resp.status_code == 200
+    assert captured["date"] == "2025-03-01"
+
+
+def test_start_run_failure():
+    """POST /api/runs returns error details when the runner raises."""
+    def failing_runner(date: str) -> dict:
+        raise RuntimeError("MCP connection refused")
+
+    client, _, _ = _make_client(fleet_runner=failing_runner)
+    resp = client.post("/api/runs")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "failed"
+    assert "MCP connection refused" in data["error"]
+
+
+def test_run_status():
+    """GET /api/runs/status/current reports whether a run is in progress."""
+    client, _, _ = _make_client()
+    resp = client.get("/api/runs/status/current")
+    assert resp.status_code == 200
+    assert resp.json()["running"] is False
+
+
+# ------------------------------------------------------------------
+# HTML frontend
+# ------------------------------------------------------------------
+
+
+def test_index_html():
+    """GET / returns the HTML dashboard page."""
+    client, _, _ = _make_client()
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "Proving Ground" in resp.text

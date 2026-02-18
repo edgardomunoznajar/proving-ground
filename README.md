@@ -68,7 +68,8 @@ proving_ground/
 ├── dashboard/
 │   ├── __init__.py          # create_app export
 │   ├── app.py               # FastAPI app factory
-│   └── routes.py            # API endpoints (runs, agents, reviews, improvements)
+│   ├── routes.py            # API endpoints (runs, agents, reviews, improvements)
+│   └── ui.py                # Single-page HTML frontend
 ├── phases/
 │   ├── base.py              # Abstract Phase class
 │   └── common.py            # Utilities (parse_llm_action, now_iso)
@@ -115,18 +116,27 @@ from proving_ground.storage.sql import SQLStorageBackend
 from proving_ground.dashboard import create_app
 
 engine = create_engine("sqlite:///proving_ground.db")
-app = create_app(SQLStorageBackend(engine))
+storage = SQLStorageBackend(engine)
+
+# Optional: wire up a fleet_runner to enable the "Start Fleet Run" button.
+# fleet_runner is any callable(date: str) -> dict that triggers your fleet.
+app = create_app(storage, fleet_runner=my_fleet.run)
 
 # uvicorn entrypoint:
 # uvicorn myapp:app --reload
 ```
 
+The HTML frontend is served at `/`. It provides tabbed views for runs, agents, reviews, and improvements, plus a button to trigger fleet runs.
+
 ### API Endpoints
 
 | Endpoint | Description |
 |---|---|
+| `GET /` | HTML dashboard UI |
 | `GET /api/runs` | List fleet run dates with agent counts and token totals |
 | `GET /api/runs/{date}` | All journals for a specific run date |
+| `POST /api/runs` | Trigger a fleet run (requires `fleet_runner` at app creation) |
+| `GET /api/runs/status/current` | Check if a fleet run is in progress |
 | `GET /api/agents` | List agents with most recent run date |
 | `GET /api/agents/{agent_id}/journals` | Recent journals for an agent |
 | `GET /api/reviews` | List cycle reviews |

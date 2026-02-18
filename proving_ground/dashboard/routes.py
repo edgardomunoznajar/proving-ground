@@ -1,9 +1,11 @@
-"""API routes — read-only endpoints over journals, reviews, and improvements."""
+"""API routes over journals, reviews, improvements, and fleet execution."""
 
 from __future__ import annotations
 
 import json
-from typing import Any
+import threading
+from datetime import datetime, timezone
+from typing import Any, Callable
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -11,9 +13,19 @@ from proving_ground.journal import JournalStore
 from proving_ground.self_improve.harvester import harvest_and_rank
 from proving_ground.types import StorageBackend
 
+FleetRunner = Callable[[str], dict[str, Any]]
 
-def build_router(storage: StorageBackend, journal_store: JournalStore) -> APIRouter:
+
+def build_router(
+    storage: StorageBackend,
+    journal_store: JournalStore,
+    fleet_runner: FleetRunner | None = None,
+) -> APIRouter:
     router = APIRouter()
+
+    # Track in-flight run so we don't launch two at once
+    _run_lock = threading.Lock()
+    _active_run: dict[str, Any] = {"running": False}
 
     # ------------------------------------------------------------------
     # Fleet runs
@@ -54,6 +66,32 @@ def build_router(storage: StorageBackend, journal_store: JournalStore) -> APIRou
         if not journals:
             raise HTTPException(status_code=404, detail=f"No journals found for {date}")
         return {"date": date, "agent_count": len(journals), "journals": journals}
+
+    @router.post("/runs")
+    def start_run(date: str | None = None) -> dict[str, Any]:
+        """Trigger a fleet run. Requires a fleet_runner callback at app creation."""
+        if fleet_runner is None:
+            raise HTTPException(status_code=501, detail="No fleet_runner configured")
+
+        with _run_lock:
+            if _active_run["running"]:
+                raise HTTPException(status_code=409, detail="A fleet run is already in progress")
+            _active_run["running"] = True
+
+        date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        try:
+            result = fleet_runner(date)
+            return {"status": "completed", "date": date, "result": result}
+        except Exception as e:
+            return {"status": "failed", "date": date, "error": str(e)}
+        finally:
+            with _run_lock:
+                _active_run["running"] = False
+
+    @router.get("/runs/status/current")
+    def run_status() -> dict[str, Any]:
+        """Check if a fleet run is currently in progress."""
+        return {"running": _active_run["running"]}
 
     # ------------------------------------------------------------------
     # Agents
