@@ -116,11 +116,21 @@ def harvest(storage: StorageBackend, last_n_runs: int = 5) -> list[ImprovementIt
         for suggestion in diagnosis.get("improvements", []):
             if not suggestion or not isinstance(suggestion, str):
                 continue
-            _merge_into(items, ImprovementItem(category="suggestion", message=suggestion.strip(), agents=[agent_id], runs=[run_date]))
+            _merge_into(
+                items,
+                ImprovementItem(category="suggestion", message=suggestion.strip(), agents=[agent_id], runs=[run_date]),
+            )
 
         risk = diagnosis.get("risk_assessment", "")
-        if isinstance(risk, str) and risk and any(kw in risk.lower() for kw in ["high", "critical", "broken", "failure"]):
-            _merge_into(items, ImprovementItem(category="risk_flag", message=risk.strip()[:500], agents=[agent_id], runs=[run_date]))
+        if (
+            isinstance(risk, str)
+            and risk
+            and any(kw in risk.lower() for kw in ["high", "critical", "broken", "failure"])
+        ):
+            _merge_into(
+                items,
+                ImprovementItem(category="risk_flag", message=risk.strip()[:500], agents=[agent_id], runs=[run_date]),
+            )
 
         for phase in journal.get("phases", []):
             phase_data = phase.get("data", {})
@@ -135,10 +145,16 @@ def harvest(storage: StorageBackend, last_n_runs: int = 5) -> list[ImprovementIt
                     error_msg = err
                 else:
                     continue
-                _merge_into(items, ImprovementItem(
-                    category="tool_error", message=str(error_msg).strip()[:500],
-                    tool_name=tool, agents=[agent_id], runs=[run_date],
-                ))
+                _merge_into(
+                    items,
+                    ImprovementItem(
+                        category="tool_error",
+                        message=str(error_msg).strip()[:500],
+                        tool_name=tool,
+                        agents=[agent_id],
+                        runs=[run_date],
+                    ),
+                )
 
     logger.info("SelfImprove: Harvested %d unique items from %d journals", len(items), len(rows or []))
     return items
@@ -171,7 +187,9 @@ def format_report(items: list[ImprovementItem]) -> str:
     for i, item in enumerate(items, 1):
         tool = item.tool_name or "-"
         msg = item.message[:60].replace("\n", " ")
-        lines.append(f"{i:<4} {item.category:<12} {item.frequency:>4} {len(item.agents):>6} {len(item.runs):>4}  {tool:<30} {msg}")
+        lines.append(
+            f"{i:<4} {item.category:<12} {item.frequency:>4} {len(item.agents):>6} {len(item.runs):>4}  {tool:<30} {msg}"
+        )
 
     cat_counts = Counter(item.category for item in items)
     lines.append("")
@@ -195,13 +213,11 @@ def format_llm_prompt(items: list[ImprovementItem], max_items: int = 5) -> str:
             f"## Issue {i} [{item.category}] (reported {item.frequency}x by {len(item.agents)} agents)\n\n"
             f"{item.message}\n\n"
             f"Agents: {agents_str}\n"
-            f"Runs: {', '.join(item.runs)}\n"
-            + (f"Tool: {item.tool_name}\n" if item.tool_name else "")
+            f"Runs: {', '.join(item.runs)}\n" + (f"Tool: {item.tool_name}\n" if item.tool_name else "")
         )
 
     return (
         "# Fleet Self-Improvement: Top Issues\n\n"
         "The following issues were reported most frequently by the autonomous agent fleet.\n"
-        "For each issue, analyze the root cause and suggest a concrete code fix.\n\n"
-        + "\n---\n\n".join(sections)
+        "For each issue, analyze the root cause and suggest a concrete code fix.\n\n" + "\n---\n\n".join(sections)
     )

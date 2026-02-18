@@ -35,15 +35,17 @@ def _seed_journals(journal_store: JournalStore) -> None:
     """Insert sample journals across two dates and three agents."""
     for agent in ["pg_alpha", "pg_beta"]:
         j = DailyJournal(agent_id=agent, date="2025-01-15")
-        j.phases.append(PhaseResult(
-            phase="research",
-            status=PhaseStatus.COMPLETED,
-            started_at="2025-01-15T00:00:00",
-            finished_at="2025-01-15T00:01:00",
-            duration_seconds=60.0,
-            tokens_used=500,
-            tools_called=["search", "read"],
-        ))
+        j.phases.append(
+            PhaseResult(
+                phase="research",
+                status=PhaseStatus.COMPLETED,
+                started_at="2025-01-15T00:00:00",
+                finished_at="2025-01-15T00:01:00",
+                duration_seconds=60.0,
+                tokens_used=500,
+                tools_called=["search", "read"],
+            )
+        )
         j.metrics = {"total_tokens": 500, "total_duration_seconds": 60.0}
         j.diagnosis = DiagnosisResult(
             bugs_suspected=["possible null return"],
@@ -53,15 +55,17 @@ def _seed_journals(journal_store: JournalStore) -> None:
         journal_store.save(j)
 
     j2 = DailyJournal(agent_id="pg_gamma", date="2025-01-16")
-    j2.phases.append(PhaseResult(
-        phase="execute",
-        status=PhaseStatus.FAILED,
-        started_at="2025-01-16T00:00:00",
-        finished_at="2025-01-16T00:00:30",
-        duration_seconds=30.0,
-        tokens_used=200,
-        error="timeout",
-    ))
+    j2.phases.append(
+        PhaseResult(
+            phase="execute",
+            status=PhaseStatus.FAILED,
+            started_at="2025-01-16T00:00:00",
+            finished_at="2025-01-16T00:00:30",
+            duration_seconds=30.0,
+            tokens_used=200,
+            error="timeout",
+        )
+    )
     j2.metrics = {"total_tokens": 200, "total_duration_seconds": 30.0}
     journal_store.save(j2)
 
@@ -88,12 +92,14 @@ def _seed_review(storage: SQLStorageBackend) -> None:
             "bugs": json.dumps([{"title": "null return bug", "severity": "warning"}]),
             "improvements": json.dumps([{"title": "add retry", "severity": "info"}]),
             "cases": json.dumps([]),
-            "health": json.dumps({
-                "fleet_health": "healthy",
-                "summary": "Fleet performed well overall.",
-                "patterns": {},
-                "recommended_actions": [],
-            }),
+            "health": json.dumps(
+                {
+                    "fleet_health": "healthy",
+                    "summary": "Fleet performed well overall.",
+                    "patterns": {},
+                    "recommended_actions": [],
+                }
+            ),
             "created_at": "2025-01-15T23:00:00",
         },
     )
@@ -256,6 +262,7 @@ def test_start_run_no_runner():
 
 def test_start_run_success():
     """POST /api/runs triggers the fleet_runner callback and returns results."""
+
     def fake_runner(date: str) -> dict:
         return {"status": "completed", "total_agents": 2, "agents_completed": 2}
 
@@ -283,6 +290,7 @@ def test_start_run_with_date():
 
 def test_start_run_failure():
     """POST /api/runs returns error details when the runner raises."""
+
     def failing_runner(date: str) -> dict:
         raise RuntimeError("MCP connection refused")
 

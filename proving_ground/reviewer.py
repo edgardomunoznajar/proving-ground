@@ -138,13 +138,15 @@ class CycleReviewer:
                 "bugs": json.dumps([t for t in tickets if t.get("ticket_type") == "bug"]),
                 "improvements": json.dumps([t for t in tickets if t.get("ticket_type") == "improvement"]),
                 "cases": json.dumps([t for t in tickets if t.get("ticket_type") == "success_case"]),
-                "health": json.dumps({
-                    "fleet_health": fleet_health,
-                    "summary": summary,
-                    "patterns": review_data.get("patterns", {}),
-                    "math_errors": review_data.get("math_errors", []),
-                    "recommended_actions": review_data.get("recommended_actions", []),
-                }),
+                "health": json.dumps(
+                    {
+                        "fleet_health": fleet_health,
+                        "summary": summary,
+                        "patterns": review_data.get("patterns", {}),
+                        "math_errors": review_data.get("math_errors", []),
+                        "recommended_actions": review_data.get("recommended_actions", []),
+                    }
+                ),
                 "created_at": datetime.utcnow().isoformat(),
             },
         )

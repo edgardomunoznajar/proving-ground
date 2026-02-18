@@ -170,11 +170,14 @@ class ActuatePhase(Phase):
                 started_at=started,
                 finished_at=datetime.now(timezone.utc).isoformat(),
                 duration_seconds=0.01,
-                data={"fixes": [], "diagnosis": {
-                    "bugs_suspected": [],
-                    "improvements": ["No improvement items found to actuate"],
-                    "confidence_score": 1.0,
-                }},
+                data={
+                    "fixes": [],
+                    "diagnosis": {
+                        "bugs_suspected": [],
+                        "improvements": ["No improvement items found to actuate"],
+                        "confidence_score": 1.0,
+                    },
+                },
             )
 
         fixes: list[dict] = []
@@ -187,9 +190,13 @@ class ActuatePhase(Phase):
             prompt = build_fix_prompt(item, {}, "You are a senior developer.")
             try:
                 response = self._llm_call(prompt)
-                fixes.append(FixResult(
-                    item=item, status="proposed", diff_summary=response[:200],
-                ).to_dict())
+                fixes.append(
+                    FixResult(
+                        item=item,
+                        status="proposed",
+                        diff_summary=response[:200],
+                    ).to_dict()
+                )
             except Exception as e:
                 fixes.append(FixResult(item=item, status="failed", error=str(e)).to_dict())
 
@@ -218,13 +225,15 @@ class ActuatePhase(Phase):
 
 def fake_llm_call(messages: list[dict]) -> str:
     """Stub LLM — returns a plausible fix JSON. Replace with real LLM call."""
-    return json.dumps({
-        "analysis": "The tool returns None when the connection times out.",
-        "file_path": None,
-        "fix_description": "Add a retry with backoff on timeout",
-        "original_code": "",
-        "fixed_code": "",
-    })
+    return json.dumps(
+        {
+            "analysis": "The tool returns None when the connection times out.",
+            "file_path": None,
+            "fix_description": "Add a retry with backoff on timeout",
+            "original_code": "",
+            "fixed_code": "",
+        }
+    )
 
 
 def build_fleet(storage: SQLStorageBackend) -> FleetOrchestrator:

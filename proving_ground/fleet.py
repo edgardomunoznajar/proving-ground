@@ -71,7 +71,10 @@ class FleetOrchestrator:
 
             wave_journals: dict[str, DailyJournal] = {}
             wave_results, wave_failed, wave_journals = self._run_wave(
-                wave_agents, date, wave_context, wave_label,
+                wave_agents,
+                date,
+                wave_context,
+                wave_label,
             )
             all_results.update(wave_results)
             all_failed.extend(wave_failed)
@@ -122,10 +125,7 @@ class FleetOrchestrator:
         journals: dict[str, DailyJournal] = {}
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {
-                executor.submit(agent.run, date=date, context=context): agent
-                for agent in agents
-            }
+            futures = {executor.submit(agent.run, date=date, context=context): agent for agent in agents}
 
             for future in as_completed(futures):
                 agent = futures[future]

@@ -18,14 +18,16 @@ def _make_store() -> JournalStore:
 def test_save_and_load():
     store = _make_store()
     journal = DailyJournal(agent_id="pg_test", date="2025-01-01")
-    journal.phases.append(PhaseResult(
-        phase="research",
-        status=PhaseStatus.COMPLETED,
-        started_at="2025-01-01T00:00:00",
-        finished_at="2025-01-01T00:01:00",
-        duration_seconds=60.0,
-        tokens_used=100,
-    ))
+    journal.phases.append(
+        PhaseResult(
+            phase="research",
+            status=PhaseStatus.COMPLETED,
+            started_at="2025-01-01T00:00:00",
+            finished_at="2025-01-01T00:01:00",
+            duration_seconds=60.0,
+            tokens_used=100,
+        )
+    )
     journal.diagnosis = DiagnosisResult(bugs_suspected=["bug1"])
 
     store.save(journal)

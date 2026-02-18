@@ -83,8 +83,7 @@ class FlakyToolClient:
 
     def list_tools(self) -> list[dict[str, Any]]:
         return [
-            {"name": t["name"], "description": t["description"], "inputSchema": t["inputSchema"]}
-            for t in self.TOOLS
+            {"name": t["name"], "description": t["description"], "inputSchema": t["inputSchema"]} for t in self.TOOLS
         ]
 
     def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
@@ -206,19 +205,23 @@ class ExerciseToolsPhase(Phase):
                     if missing:
                         entry["status"] = "schema_mismatch"
                         entry["missing_keys"] = sorted(missing)
-                        tool_errors.append({
-                            "tool": tool_name,
-                            "error": f"Missing keys in response: {sorted(missing)}",
-                        })
+                        tool_errors.append(
+                            {
+                                "tool": tool_name,
+                                "error": f"Missing keys in response: {sorted(missing)}",
+                            }
+                        )
                     if extra:
                         entry["extra_keys"] = sorted(extra)
 
                 elif expected_keys and not isinstance(response, dict):
                     entry["status"] = "wrong_type"
-                    tool_errors.append({
-                        "tool": tool_name,
-                        "error": f"Expected dict, got {type(response).__name__}",
-                    })
+                    tool_errors.append(
+                        {
+                            "tool": tool_name,
+                            "error": f"Expected dict, got {type(response).__name__}",
+                        }
+                    )
 
             except Exception as e:
                 entry["status"] = "error"

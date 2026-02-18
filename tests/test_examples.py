@@ -58,6 +58,7 @@ class TestSelfImprovePhases:
     def test_harvest_phase_returns_items(self):
         storage = _make_storage()
         from proving_ground.journal import JournalStore
+
         JournalStore(storage).ensure_table()
 
         phase = HarvestPhase(storage, last_n_runs=5)
@@ -84,14 +85,16 @@ class TestSelfImprovePhases:
             duration_seconds=0.01,
             data={
                 "items_found": 1,
-                "items": [{
-                    "category": "bug",
-                    "message": "search tool times out",
-                    "frequency": 2,
-                    "agents": ["pg_alpha"],
-                    "runs": ["2025-01-01"],
-                    "tool_name": "search",
-                }],
+                "items": [
+                    {
+                        "category": "bug",
+                        "message": "search tool times out",
+                        "frequency": 2,
+                        "agents": ["pg_alpha"],
+                        "runs": ["2025-01-01"],
+                        "tool_name": "search",
+                    }
+                ],
             },
         )
         phase = ActuatePhase(fake_llm_call, max_fixes=3)
@@ -134,6 +137,7 @@ class TestMcpDebugPhases:
         class BrokenClient:
             def list_tools(self):
                 raise ConnectionError("server down")
+
             def call_tool(self, name, arguments):
                 pass
 

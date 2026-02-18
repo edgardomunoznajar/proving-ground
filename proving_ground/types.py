@@ -13,11 +13,9 @@ from typing import Any, Protocol, runtime_checkable
 class ToolClient(Protocol):
     """Adapter for tool execution (e.g. MCP, function-calling, local tools)."""
 
-    def list_tools(self) -> list[dict[str, Any]]:
-        ...
+    def list_tools(self) -> list[dict[str, Any]]: ...
 
-    def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
-        ...
+    def call_tool(self, name: str, arguments: dict[str, Any]) -> Any: ...
 
 
 @runtime_checkable
@@ -31,16 +29,13 @@ class StorageBackend(Protocol):
         *,
         fetch_one: bool = False,
         fetch_all: bool = False,
-    ) -> Any:
-        ...
+    ) -> Any: ...
 
-    def execute_ddl(self, ddl: str) -> None:
-        ...
+    def execute_ddl(self, ddl: str) -> None: ...
 
 
 @runtime_checkable
 class ContextProvider(Protocol):
     """Supplies domain-specific context to agent phases."""
 
-    def get_context(self, topic: str, **kwargs: Any) -> str:
-        ...
+    def get_context(self, topic: str, **kwargs: Any) -> str: ...

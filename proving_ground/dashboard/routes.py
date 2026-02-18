@@ -151,14 +151,16 @@ def build_router(
                     health = json.loads(r["health_assessment"])
                 except (json.JSONDecodeError, TypeError):
                     pass
-            results.append({
-                "review_id": r["id"],
-                "date": r["review_date"],
-                "review_type": r["review_type"],
-                "fleet_health": health.get("fleet_health", "unknown"),
-                "summary": health.get("summary", ""),
-                "created_at": r["created_at"],
-            })
+            results.append(
+                {
+                    "review_id": r["id"],
+                    "date": r["review_date"],
+                    "review_type": r["review_type"],
+                    "fleet_health": health.get("fleet_health", "unknown"),
+                    "summary": health.get("summary", ""),
+                    "created_at": r["created_at"],
+                }
+            )
         return results
 
     @router.get("/reviews/{date}")
