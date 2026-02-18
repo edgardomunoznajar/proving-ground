@@ -79,6 +79,10 @@ proving_ground/
     ├── harvester.py          # Extract and rank improvement items from journals
     ├── actuator.py           # Generate and apply fixes (local)
     └── cloud.py              # GitHub API-based fix cycle (branches + PRs)
+
+examples/
+├── self_improve_agent.py     # Self-improvement loop: workers → harvester → actuator
+└── mcp_debug_agent.py        # MCP tool-surface testing: discover → exercise → validate
 ```
 
 ## Installation
@@ -152,6 +156,38 @@ pytest
 ```
 
 Tests use in-memory stubs and SQLite for isolation. No external services required.
+
+## Examples
+
+Two runnable examples live in `examples/`. Both work out of the box with in-memory stubs — no API keys or external services needed.
+
+### Self-Improvement Agent (`examples/self_improve_agent.py`)
+
+Demonstrates the full harvest-actuate loop across two waves:
+
+- **Wave 1** — Worker agents (`Alpha`, `Beta`) run tasks, encounter tool errors, and self-diagnose (bugs suspected, improvement suggestions).
+- **Wave 2** — An `Improver` agent harvests issues from the Wave 1 journals, ranks them by frequency, and calls an LLM to propose fixes.
+
+```bash
+python -m examples.self_improve_agent
+```
+
+Key classes: `WorkPhase`, `DiagnosePhase`, `HarvestPhase`, `ActuatePhase`. Swap `fake_llm_call` with a real LiteLLM call to get actual fix proposals.
+
+### MCP Debug Agent (`examples/mcp_debug_agent.py`)
+
+Demonstrates automated MCP/tool-surface testing:
+
+- **Wave 1** — A `Discoverer` agent lists all tools from the MCP server and validates their input schemas (missing descriptions, missing required fields, wrong types).
+- **Wave 2** — An `Exerciser` agent calls each tool with sample inputs and validates response shapes against expected keys. Catches schema mismatches, timeouts, and unexpected errors.
+
+```bash
+python -m examples.mcp_debug_agent
+```
+
+The stub `FlakyToolClient` simulates a server where `get_weather` works, `run_query` returns a wrong shape (missing `columns` key), and `send_email` times out. Replace it with any `ToolClient` implementation to debug a real MCP server.
+
+Key classes: `FlakyToolClient`, `DiscoverToolsPhase`, `ExerciseToolsPhase`.
 
 ## Other Use Cases Along the Same Axis
 
