@@ -3,7 +3,7 @@
 from proving_ground.agent import Agent
 from proving_ground.fleet import FleetOrchestrator
 from proving_ground.journal import JournalStore
-from proving_ground.models import AgentPersona, DailyJournal, PhaseResult, PhaseStatus
+from proving_ground.models import AgentPersona, PhaseResult, PhaseStatus
 from proving_ground.phases.base import Phase
 
 

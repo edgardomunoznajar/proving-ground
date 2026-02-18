@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
 from proving_ground.agent import Agent
-from proving_ground.models import DailyJournal, FleetStatus
+from proving_ground.models import DailyJournal
 
 logger = logging.getLogger("proving_ground")
 

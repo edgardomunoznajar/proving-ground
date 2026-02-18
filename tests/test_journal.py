@@ -1,7 +1,5 @@
 """Test JournalStore with SQLite."""
 
-import json
-
 from sqlalchemy import create_engine
 
 from proving_ground.journal import JournalStore
