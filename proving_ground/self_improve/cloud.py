@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import base64
 import logging
-import uuid
 from datetime import UTC, datetime
 from typing import Any, Callable
 
@@ -183,10 +182,14 @@ def run_cloud_improvement_cycle(
 
         fix = parse_fix_response(response)
         if not fix or not fix.get("file_path"):
-            results.append(FixResult(item=item, status="skipped", error="No actionable fix", llm_response=response[:500]).to_dict())
+            results.append(
+                FixResult(item=item, status="skipped", error="No actionable fix", llm_response=response[:500]).to_dict()
+            )
             continue
 
-        fix_result = FixResult(item=item, status="proposed", file_path=fix.get("file_path"), diff_summary=fix.get("fix_description", ""))
+        fix_result = FixResult(
+            item=item, status="proposed", file_path=fix.get("file_path"), diff_summary=fix.get("fix_description", "")
+        )
 
         original_code = fix.get("original_code", "")
         fixed_code = fix.get("fixed_code", "")

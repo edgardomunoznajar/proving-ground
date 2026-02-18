@@ -13,7 +13,7 @@ from proving_ground.models import (
     ReviewTicket,
 )
 from proving_ground.phases.base import Phase
-from proving_ground.reviewer import NightlyReviewer
+from proving_ground.reviewer import CycleReviewer
 from proving_ground.storage.sql import SQLStorageBackend
 from proving_ground.types import ContextProvider, StorageBackend, ToolClient
 
@@ -22,7 +22,7 @@ __all__ = [
     "Agent",
     "FleetOrchestrator",
     "JournalStore",
-    "NightlyReviewer",
+    "CycleReviewer",
     "Phase",
     # Models
     "AgentPersona",

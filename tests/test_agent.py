@@ -99,13 +99,16 @@ def test_agent_extracts_diagnosis():
     journal_store = JournalStore(storage)
     persona = AgentPersona(codename="DiagBot", mandate="Diagnose")
 
-    diag_phase = StubPhase("journal", {
-        "diagnosis": {
-            "bugs_suspected": ["bug1"],
-            "improvements": ["improve1"],
-            "confidence_score": 0.85,
-        }
-    })
+    diag_phase = StubPhase(
+        "journal",
+        {
+            "diagnosis": {
+                "bugs_suspected": ["bug1"],
+                "improvements": ["improve1"],
+                "confidence_score": 0.85,
+            }
+        },
+    )
     agent = Agent(persona=persona, phases=[diag_phase], journal_store=journal_store)
     journal = agent.run(date="2025-01-01")
 

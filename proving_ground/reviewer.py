@@ -1,4 +1,4 @@
-"""Nightly reviewer — aggregates journals and generates review tickets."""
+"""Cycle reviewer — aggregates journals and generates review tickets."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def _parse_review(content: str) -> dict:
     return {"fleet_health": "unknown", "summary": content[:500], "tickets": []}
 
 
-class NightlyReviewer:
+class CycleReviewer:
     """Aggregates agent journals and generates review tickets via LLM."""
 
     def __init__(
@@ -72,7 +72,7 @@ class NightlyReviewer:
         llm_call: Callable[[str, str], dict[str, Any]],
         prompt_template: str | Path | None = None,
         fallback_prompt: str = (
-            "You are the Nightly Reviewer for an autonomous agent fleet. "
+            "You are the Cycle Reviewer for an autonomous agent fleet. "
             "Review the agent journals and respond with structured JSON analysis "
             "including fleet_health, summary, tickets, patterns, and recommended_actions."
         ),
@@ -87,7 +87,7 @@ class NightlyReviewer:
         self.storage.execute_ddl(_REVIEWS_TABLE_DDL)
 
     def run(self, date: str | None = None, max_journal_chars: int = 80000) -> dict[str, Any]:
-        """Run nightly review for all agents on a given date."""
+        """Run review for all agents on a given date."""
         date = date or datetime.utcnow().strftime("%Y-%m-%d")
         t0 = time.monotonic()
 
@@ -134,17 +134,19 @@ class NightlyReviewer:
             {
                 "id": review_id,
                 "date": date,
-                "type": "nightly",
+                "type": "cycle",
                 "bugs": json.dumps([t for t in tickets if t.get("ticket_type") == "bug"]),
                 "improvements": json.dumps([t for t in tickets if t.get("ticket_type") == "improvement"]),
                 "cases": json.dumps([t for t in tickets if t.get("ticket_type") == "success_case"]),
-                "health": json.dumps({
-                    "fleet_health": fleet_health,
-                    "summary": summary,
-                    "patterns": review_data.get("patterns", {}),
-                    "math_errors": review_data.get("math_errors", []),
-                    "recommended_actions": review_data.get("recommended_actions", []),
-                }),
+                "health": json.dumps(
+                    {
+                        "fleet_health": fleet_health,
+                        "summary": summary,
+                        "patterns": review_data.get("patterns", {}),
+                        "math_errors": review_data.get("math_errors", []),
+                        "recommended_actions": review_data.get("recommended_actions", []),
+                    }
+                ),
                 "created_at": datetime.utcnow().isoformat(),
             },
         )

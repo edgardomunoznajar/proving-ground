@@ -170,7 +170,9 @@ def _apply_fix(fix: dict, project_root: Path) -> bool:
     return True
 
 
-def _run_tests(project_root: Path, file_path: str | None, test_cmd: list[str] | None = None, timeout: int = 120) -> tuple[bool, str]:
+def _run_tests(
+    project_root: Path, file_path: str | None, test_cmd: list[str] | None = None, timeout: int = 120
+) -> tuple[bool, str]:
     """Run tests. The test command is configurable."""
     if test_cmd is None:
         test_targets = ["tests/unit/"]
@@ -250,15 +252,19 @@ def actuate(
 
         fix = parse_fix_response(response)
         if not fix or not fix.get("file_path"):
-            results.append(FixResult(
-                item=item, status="skipped",
-                error="LLM did not produce actionable fix",
-                llm_response=response[:500],
-            ))
+            results.append(
+                FixResult(
+                    item=item,
+                    status="skipped",
+                    error="LLM did not produce actionable fix",
+                    llm_response=response[:500],
+                )
+            )
             continue
 
         result = FixResult(
-            item=item, status="proposed",
+            item=item,
+            status="proposed",
             file_path=fix.get("file_path"),
             diff_summary=fix.get("fix_description", ""),
             llm_response=response[:1000],
