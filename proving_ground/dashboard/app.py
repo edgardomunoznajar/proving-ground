@@ -41,7 +41,7 @@ def create_app(
     journal_store = JournalStore(storage)
     journal_store.ensure_table()
 
-    # Ensure reviews table exists (same DDL the NightlyReviewer uses)
+    # Ensure reviews table exists (same DDL the CycleReviewer uses)
     storage.execute_ddl(_REVIEWS_TABLE_DDL)
 
     router = build_router(storage, journal_store)

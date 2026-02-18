@@ -64,7 +64,7 @@ def _seed_journals(journal_store: JournalStore) -> None:
 
 
 def _seed_review(storage: SQLStorageBackend) -> None:
-    """Insert a sample nightly review."""
+    """Insert a sample review."""
     storage.execute_ddl(
         """CREATE TABLE IF NOT EXISTS proving_ground_reviews (
             id TEXT PRIMARY KEY, review_date DATE NOT NULL, review_type TEXT NOT NULL,
@@ -81,7 +81,7 @@ def _seed_review(storage: SQLStorageBackend) -> None:
         {
             "id": "rev-001",
             "date": "2025-01-15",
-            "type": "nightly",
+            "type": "cycle",
             "bugs": json.dumps([{"title": "null return bug", "severity": "warning"}]),
             "improvements": json.dumps([{"title": "add retry", "severity": "info"}]),
             "cases": json.dumps([]),

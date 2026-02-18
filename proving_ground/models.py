@@ -128,7 +128,7 @@ class DailyJournal:
 
 @dataclass
 class ReviewTicket:
-    """Output from nightly review."""
+    """Output from cycle review."""
 
     ticket_id: str = field(default_factory=lambda: f"PG-{uuid.uuid4().hex[:6].upper()}")
     review_date: str = ""

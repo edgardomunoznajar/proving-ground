@@ -94,7 +94,7 @@ def build_router(storage: StorageBackend, journal_store: JournalStore) -> APIRou
 
     @router.get("/reviews")
     def list_reviews(limit: int = Query(30, ge=1, le=365)) -> list[dict[str, Any]]:
-        """List nightly reviews."""
+        """List cycle reviews."""
         rows = storage.execute_query(
             """
             SELECT id, review_date, review_type, health_assessment, created_at
@@ -125,7 +125,7 @@ def build_router(storage: StorageBackend, journal_store: JournalStore) -> APIRou
 
     @router.get("/reviews/{date}")
     def get_review(date: str) -> dict[str, Any]:
-        """Get the full nightly review for a specific date."""
+        """Get the full review for a specific date."""
         row = storage.execute_query(
             """
             SELECT id, review_date, review_type, bugs_json, improvements_json,

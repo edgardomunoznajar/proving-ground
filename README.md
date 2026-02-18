@@ -12,7 +12,7 @@ Multi-agent orchestration framework with self-improvement. Run fleets of autonom
 
 **Journals** — Every agent run produces a `DailyJournal`: phase results, aggregate metrics, and an optional `DiagnosisResult` (bugs suspected, improvements, confidence score, risk assessment, next-day plan). Journals persist to SQL via `JournalStore` with optional JSONL archival.
 
-**Nightly Review** — `NightlyReviewer` aggregates journals for a date, calls an LLM with a configurable prompt, and produces structured output: fleet health, summary, patterns, and `ReviewTicket` objects (PG-XXXXX IDs, severity, type, evidence).
+**Cycle Review** — `CycleReviewer` aggregates journals for a date, calls an LLM with a configurable prompt, and produces structured output: fleet health, summary, patterns, and `ReviewTicket` objects (PG-XXXXX IDs, severity, type, evidence). Run it after every fleet cycle, on a schedule, or on-demand.
 
 **Self-Improvement Loop** — The `Harvester` reads journals from the last N runs, extracts bugs/suggestions/tool errors/risk flags, deduplicates by similarity (75% threshold), and ranks by frequency across agents. The `Actuator` takes top items, finds relevant source files, calls an LLM to generate fixes, applies via search-and-replace, runs tests, and reverts on failure. A cloud variant (`cloud.py`) does the same via GitHub API — creates branches and PRs without touching the local filesystem.
 
@@ -35,7 +35,7 @@ Define Personas (mandates, phases, constraints)
   Wave 2+: Specialized agents act on previous findings
         |
         v
-  NightlyReviewer: aggregate journals -> LLM critique -> ReviewTickets
+  CycleReviewer: aggregate journals -> LLM critique -> ReviewTickets
         |
         v
   Self-Improvement: harvest -> rank -> actuate -> test -> commit/PR
@@ -62,7 +62,7 @@ proving_ground/
 ├── agent.py                 # Generic agent executor
 ├── fleet.py                 # Wave-based fleet orchestration
 ├── journal.py               # Journal persistence (SQL + JSONL)
-├── reviewer.py              # Nightly review and critique
+├── reviewer.py              # Cycle review and critique
 ├── llm.py                   # LLM interface via litellm (multi-provider)
 ├── persona.py               # Load personas from JSON files
 ├── dashboard/
@@ -129,7 +129,7 @@ app = create_app(SQLStorageBackend(engine))
 | `GET /api/runs/{date}` | All journals for a specific run date |
 | `GET /api/agents` | List agents with most recent run date |
 | `GET /api/agents/{agent_id}/journals` | Recent journals for an agent |
-| `GET /api/reviews` | List nightly reviews |
+| `GET /api/reviews` | List cycle reviews |
 | `GET /api/reviews/{date}` | Full review detail for a date |
 | `GET /api/improvements` | Harvested and ranked improvement items from recent runs |
 
