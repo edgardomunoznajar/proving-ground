@@ -99,12 +99,14 @@ def harvest(storage: StorageBackend, last_n_runs: int = 5) -> list[ImprovementIt
         except (json.JSONDecodeError, TypeError):
             continue
 
-        diagnosis = journal.get("diagnosis", {})
+        diagnosis = journal.get("diagnosis") or {}
         if isinstance(diagnosis, str):
             try:
                 diagnosis = json.loads(diagnosis)
             except (json.JSONDecodeError, TypeError):
                 diagnosis = {}
+        if not isinstance(diagnosis, dict):
+            diagnosis = {}
 
         for bug in diagnosis.get("bugs_suspected", []):
             if not bug or not isinstance(bug, str):

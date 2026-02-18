@@ -65,6 +65,10 @@ proving_ground/
 ├── reviewer.py              # Nightly review and critique
 ├── llm.py                   # LLM interface via litellm (multi-provider)
 ├── persona.py               # Load personas from JSON files
+├── dashboard/
+│   ├── __init__.py          # create_app export
+│   ├── app.py               # FastAPI app factory
+│   └── routes.py            # API endpoints (runs, agents, reviews, improvements)
 ├── phases/
 │   ├── base.py              # Abstract Phase class
 │   └── common.py            # Utilities (parse_llm_action, now_iso)
@@ -94,6 +98,42 @@ Requires Python 3.11+.
 
 - **litellm** — Unified LLM interface. Supports OpenAI, Anthropic, DeepSeek, Gemini, local models, and more. Router support for multi-provider failover and rate limiting.
 - **SQLAlchemy** — Storage backend for journal and review persistence.
+
+## Dashboard
+
+An optional FastAPI-based monitoring UI. Install with:
+
+```bash
+pip install -e ".[dashboard]"
+```
+
+Start the server:
+
+```python
+from sqlalchemy import create_engine
+from proving_ground.storage.sql import SQLStorageBackend
+from proving_ground.dashboard import create_app
+
+engine = create_engine("sqlite:///proving_ground.db")
+app = create_app(SQLStorageBackend(engine))
+
+# uvicorn entrypoint:
+# uvicorn myapp:app --reload
+```
+
+### API Endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/runs` | List fleet run dates with agent counts and token totals |
+| `GET /api/runs/{date}` | All journals for a specific run date |
+| `GET /api/agents` | List agents with most recent run date |
+| `GET /api/agents/{agent_id}/journals` | Recent journals for an agent |
+| `GET /api/reviews` | List nightly reviews |
+| `GET /api/reviews/{date}` | Full review detail for a date |
+| `GET /api/improvements` | Harvested and ranked improvement items from recent runs |
+
+Interactive API docs available at `/docs` (Swagger) and `/redoc`.
 
 ## Running Tests
 
